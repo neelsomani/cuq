@@ -1,0 +1,5 @@
+[toolchain]
+channel = "nightly-2025-03-02"
+components = []
+targets = []
+profile = "default"

@@ -1,30 +1,35 @@
-Require Import MIRSyntax.
-Require Import MIRSemantics.
-Require Import PTXImports.
-Require Import Translate.
+From Coq Require Import List.
+
+Import ListNotations.
+
+Require Import MIRSyntax MIRSemantics Translate PTXImports.
 
 Module Soundness.
 
-Module M := MIR.
+Module M  := MIR.
 Module MS := MIRSemantics.
-Module P := PTX.
-Module T := Translate.
+Module T  := Translate.
+Module P  := PTX.
 
-Theorem Barrier_ok :
-  T.tr_event M.EvBarrier = Some (P.EvBarrier P.scope_cta).
+Lemma translate_barrier_shape :
+  T.translate_event M.EvBarrier = P.EvBarrier P.scope_cta.
 Proof. reflexivity. Qed.
 
-Theorem AtomicStore_release_ok : forall ty addr val,
-  T.tr_event (M.EvAtomicStoreRelease ty addr val) =
-  option_map
-    (fun payload =>
-       P.EvStore P.space_global P.sem_release (Some P.scope_sys)
-                 (P.mem_ty_of_mir ty) addr payload)
-    (P.payload_of_mir ty val).
-Proof. intros; reflexivity. Qed.
+Lemma translate_acquire_is_load : forall ty addr v,
+  T.translate_event (M.EvAtomicLoadAcquire ty addr v) =
+    P.EvLoad P.space_global P.sem_acquire (Some P.scope_sys)
+            (T.mem_ty_of_mir ty) addr (T.z_of_val v).
+Proof. reflexivity. Qed.
 
-Theorem Compile_trace_sound : forall trace ptx_trace,
-  T.tr_trace trace = Some ptx_trace -> True.
-Proof. intros; exact I. Qed.
+Lemma translate_release_is_store : forall ty addr v,
+  T.translate_event (M.EvAtomicStoreRelease ty addr v) =
+    P.EvStore P.space_global P.sem_release (Some P.scope_sys)
+            (T.mem_ty_of_mir ty) addr (T.z_of_val v).
+Proof. reflexivity. Qed.
+
+(* Placeholder for the eventual per-trace correspondence theorem. *)
+Theorem translate_trace_sound : forall (trace : list M.event_mir),
+  True.
+Proof. exact (fun _ => I). Qed.
 
 End Soundness.

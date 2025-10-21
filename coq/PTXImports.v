@@ -1,70 +1,59 @@
-From Coq Require Import ZArith.
-From Coq Require Import Bool.Bool.
-
-Require Import MIRSyntax.
+From Coq Require Import ZArith Bool.Bool.
 
 Module PTX.
 
-Inductive scope :=
-| ScopeCTA
-| ScopeGPU
-| ScopeSYS.
-
-Inductive mem_space :=
+(* Memory spaces (week-1: only global) *)
+Inductive space :=
 | SpaceGlobal
 | SpaceShared.
 
+(* Memory semantics / orderings *)
 Inductive mem_sem :=
 | SemRelaxed
 | SemAcquire
 | SemRelease.
 
+(* Scope tags carried by acquire/release ops and barriers *)
+Inductive scope :=
+| ScopeCTA
+| ScopeSYS.
+
+(* Memory payload kinds determining PTX operand width *)
 Inductive mem_ty :=
 | MemU32
+| MemS32
 | MemF32
-| MemPred
-| MemU64.
+| MemU64
+| MemPred.
 
-Inductive payload :=
-| PayloadU32 (n : Z)
-| PayloadF32 (bits : Z)
-| PayloadPred (b : bool)
-| PayloadU64 (addr : Z).
-
+(* PTX events touched in week-1 bridge *)
 Inductive event :=
-| EvLoad (space : mem_space) (sem : mem_sem) (sc : option scope)
-         (ty : mem_ty) (addr : Z) (val : payload)
-| EvStore (space : mem_space) (sem : mem_sem) (sc : option scope)
-          (ty : mem_ty) (addr : Z) (val : payload)
+| EvLoad
+    (sp  : space)
+    (sem : mem_sem)
+    (sc  : option scope)
+    (ty  : mem_ty)
+    (addr: Z)
+    (val : Z)
+| EvStore
+    (sp  : space)
+    (sem : mem_sem)
+    (sc  : option scope)
+    (ty  : mem_ty)
+    (addr: Z)
+    (val : Z)
 | EvBarrier (sc : scope).
 
-Definition scope_cta : scope := ScopeCTA.
-Definition scope_sys : scope := ScopeSYS.
-Definition scope_gpu : scope := ScopeGPU.
+(* Handy aliases matching the mapping-table notation *)
+Definition space_global : space := SpaceGlobal.
+Definition space_shared : space := SpaceShared.
+
 Definition sem_relaxed : mem_sem := SemRelaxed.
 Definition sem_acquire : mem_sem := SemAcquire.
 Definition sem_release : mem_sem := SemRelease.
 
-Definition space_global : mem_space := SpaceGlobal.
-Definition space_shared : mem_space := SpaceShared.
-
-Definition mem_ty_of_mir (ty : MIR.mir_ty) : mem_ty :=
-  match ty with
-  | MIR.TyI32 => MemU32
-  | MIR.TyU32 => MemU32
-  | MIR.TyF32 => MemF32
-  | MIR.TyU64 => MemU64
-  | MIR.TyBool => MemPred
-  end.
-
-Definition payload_of_mir (ty : MIR.mir_ty) (v : MIR.val) : option payload :=
-  match ty, v with
-  | MIR.TyI32, MIR.VI32 n => Some (PayloadU32 n)
-  | MIR.TyU32, MIR.VU32 n => Some (PayloadU32 n)
-  | MIR.TyF32, MIR.VF32 bits => Some (PayloadF32 bits)
-  | MIR.TyU64, MIR.VU64 addr => Some (PayloadU64 addr)
-  | MIR.TyBool, MIR.VBool b => Some (PayloadPred b)
-  | _, _ => None
-  end.
+Definition scope_cta : scope := ScopeCTA.
+Definition scope_sys : scope := ScopeSYS.
 
 End PTX.
+

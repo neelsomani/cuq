@@ -1,4 +1,4 @@
-From Coq Require Import List.
+From Coq Require Import ZArith List.
 
 Import ListNotations.
 
@@ -10,48 +10,50 @@ Module Translate.
 Module M := MIR.
 Module P := PTX.
 
-Definition translate_ty : M.mir_ty -> P.mem_ty := P.mem_ty_of_mir.
+(* Map MIR scalar types to PTX payload tags. *)
+Definition mem_ty_of_mir (t : M.mir_ty) : P.mem_ty :=
+  match t with
+  | M.TyI32 => P.MemS32
+  | M.TyU32 => P.MemU32
+  | M.TyF32 => P.MemF32
+  | M.TyU64 => P.MemU64
+  | M.TyBool => P.MemPred
+  end.
 
-Definition tr_event (ev : M.event_mir) : option P.event :=
+(* Encode MIR values as Z payloads following PTX register widths. *)
+Definition z_of_val (v : M.val) : Z :=
+  match v with
+  | M.VI32 z => z
+  | M.VU32 z => z
+  | M.VF32 bits => bits
+  | M.VU64 addr => addr
+  | M.VBool true => 1
+  | M.VBool false => 0
+  end.
+
+(* Week-1 policy helpers. *)
+Definition space_global : P.space := P.space_global.
+Definition scope_cta   : P.scope := P.scope_cta.
+Definition scope_sys   : P.scope := P.scope_sys.
+
+(* One MIR event maps to one PTX event. *)
+Definition translate_event (ev : M.event_mir) : P.event :=
   match ev with
   | M.EvLoad ty addr v =>
-      option_map
-        (fun payload =>
-           P.EvLoad P.space_global P.sem_relaxed None
-                    (P.mem_ty_of_mir ty) addr payload)
-        (P.payload_of_mir ty v)
+      P.EvLoad space_global P.sem_relaxed None (mem_ty_of_mir ty) addr (z_of_val v)
   | M.EvStore ty addr v =>
-      option_map
-        (fun payload =>
-           P.EvStore P.space_global P.sem_relaxed None
-                     (P.mem_ty_of_mir ty) addr payload)
-        (P.payload_of_mir ty v)
+      P.EvStore space_global P.sem_relaxed None (mem_ty_of_mir ty) addr (z_of_val v)
   | M.EvAtomicLoadAcquire ty addr v =>
-      option_map
-        (fun payload =>
-           P.EvLoad P.space_global P.sem_acquire (Some P.scope_sys)
-                    (P.mem_ty_of_mir ty) addr payload)
-        (P.payload_of_mir ty v)
+      P.EvLoad space_global P.sem_acquire (Some scope_sys)
+               (mem_ty_of_mir ty) addr (z_of_val v)
   | M.EvAtomicStoreRelease ty addr v =>
-      option_map
-        (fun payload =>
-           P.EvStore P.space_global P.sem_release (Some P.scope_sys)
-                     (P.mem_ty_of_mir ty) addr payload)
-        (P.payload_of_mir ty v)
-  | M.EvBarrier => Some (P.EvBarrier P.scope_cta)
+      P.EvStore space_global P.sem_release (Some scope_sys)
+               (mem_ty_of_mir ty) addr (z_of_val v)
+  | M.EvBarrier => P.EvBarrier scope_cta
   end.
 
-Fixpoint option_map_list {A B} (f : A -> option B) (xs : list A) : option (list B) :=
-  match xs with
-  | [] => Some []
-  | x :: xs' =>
-      match f x, option_map_list f xs' with
-      | Some y, Some ys => Some (y :: ys)
-      | _, _ => None
-      end
-  end.
-
-Definition tr_trace (trace : list M.event_mir) : option (list P.event) :=
-  option_map_list tr_event trace.
+Definition translate_trace (trace : list M.event_mir) : list P.event :=
+  List.map translate_event trace.
 
 End Translate.
+

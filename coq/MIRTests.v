@@ -7,10 +7,14 @@ Open Scope Z_scope.
 Require Import MIRSyntax.
 Require Import MIRSemantics.
 Require Import MIRRun.
+Require Import PTXImports.
+Require Import Translate.
 
 Module M := MIR.
 Module MS := MIRSemantics.
 Module MR := MIRRun.
+Module P := PTX.
+Module TR := Translate.
 
 Fixpoint lookup_mem (k : M.addr) (ps : list (M.addr * M.val)) : option M.val :=
   match ps with
@@ -57,3 +61,25 @@ Definition cfg_flag : MS.cfg := MS.mk_cfg prog_acqrel empty_env μ_flag.
 
 Eval compute in (MR.run 10 cfg_flag).
 
+(* === Step 3: translating MIR traces to PTX events === *)
+
+Definition trace_ls : list M.event_mir := fst (MR.run 10 cfg_ls).
+Definition trace_barrier : list M.event_mir := fst (MR.run 3 cfg_barrier).
+Definition trace_acqrel : list M.event_mir := fst (MR.run 10 cfg_flag).
+
+Example trans_load_store_ok :
+  TR.translate_trace trace_ls =
+    [ P.EvLoad  P.space_global P.sem_relaxed None P.MemF32 1000 42
+    ; P.EvStore P.space_global P.sem_relaxed None P.MemF32 2000 42 ].
+Proof. reflexivity. Qed.
+
+Example trans_barrier_ok :
+  TR.translate_trace trace_barrier =
+    [ P.EvBarrier P.scope_cta ].
+Proof. reflexivity. Qed.
+
+Example trans_acqrel_ok :
+  TR.translate_trace trace_acqrel =
+    [ P.EvStore P.space_global P.sem_release (Some P.scope_sys) P.MemU32 3000 1
+    ; P.EvLoad  P.space_global P.sem_acquire (Some P.scope_sys) P.MemU32 3000 1 ].
+Proof. reflexivity. Qed.

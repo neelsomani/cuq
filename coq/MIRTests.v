@@ -153,3 +153,20 @@ Example atomic_gen_translate_ok :
     ; P.EvStore P.space_global P.sem_relaxed None P.MemU32 4000 0
     ; P.EvStore P.space_global P.sem_release (Some P.scope_sys) P.MemU32 3000 1 ].
 Proof. reflexivity. Qed.
+
+(* === Additional regression: i32 loads use MemS32 === *)
+
+Definition prog_i32 : list M.stmt :=
+  [ M.SLoad "x" (M.EVal (M.VU64 5000)) M.TyI32
+  ; M.SStore (M.EVal (M.VU64 6000)) (M.EVar "x") M.TyI32
+  ].
+
+Definition μ_i32 : MS.mem := mem_of_pairs [(5000, M.VI32 7%Z); (6000, M.VI32 0%Z)].
+Definition cfg_i32 : MS.cfg := MS.mk_cfg prog_i32 empty_env μ_i32.
+Definition tr_i32 : list M.event_mir := fst (MR.run 5 cfg_i32).
+
+Example trans_i32_ok :
+  TR.translate_trace tr_i32 =
+    [ P.EvLoad  P.space_global P.sem_relaxed None P.MemS32 5000 7
+    ; P.EvStore P.space_global P.sem_relaxed None P.MemS32 6000 7 ].
+Proof. reflexivity. Qed.

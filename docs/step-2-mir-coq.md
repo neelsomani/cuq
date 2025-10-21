@@ -1,6 +1,6 @@
 # Step 2 Coq Sanity Checks
 
-The week‑1 MIR semantics lives under `coq/`. Build it to exercise the smoke
+The limited MIR semantics lives under `coq/`. Build it to exercise the smoke
 tests that emit `event_mir` traces.
 
 ## Build prerequisites

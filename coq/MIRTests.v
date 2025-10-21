@@ -9,12 +9,16 @@ Require Import MIRSemantics.
 Require Import MIRRun.
 Require Import PTXImports.
 Require Import Translate.
+Require Import saxpy_gen.
+Require Import atomic_flag_gen.
 
 Module M := MIR.
 Module MS := MIRSemantics.
 Module MR := MIRRun.
 Module P := PTX.
 Module TR := Translate.
+Module SG := Saxpy_gen.
+Module AF := Atomic_flag_gen.
 
 Fixpoint lookup_mem (k : M.addr) (ps : list (M.addr * M.val)) : option M.val :=
   match ps with
@@ -29,6 +33,12 @@ Definition extend_env (ρ : MS.env) (x : M.var) (v : M.val) : MS.env :=
   MS.env_set ρ x v.
 
 Definition empty_env : MS.env := MS.empty_env.
+
+Fixpoint env_of_pairs (ps : list (M.var * M.val)) : MS.env :=
+  match ps with
+  | [] => MS.empty_env
+  | (x, v) :: ps' => MS.env_set (env_of_pairs ps') x v
+  end.
 
 (* === Test 1: relaxed load followed by store === *)
 
@@ -82,4 +92,64 @@ Example trans_acqrel_ok :
   TR.translate_trace trace_acqrel =
     [ P.EvStore P.space_global P.sem_release (Some P.scope_sys) P.MemU32 3000 1
     ; P.EvLoad  P.space_global P.sem_acquire (Some P.scope_sys) P.MemU32 3000 1 ].
+Proof. reflexivity. Qed.
+
+(* === Step 4: generated programs via mir2coq === *)
+
+Definition env_saxpy_gen : MS.env :=
+  env_of_pairs [ ("_2", M.VU64 1000%Z)
+               ; ("_3", M.VU64 2000%Z)
+               ; ("_8", M.VU32 0%Z)
+               ; ("_14", M.VF32 42%Z)
+               ].
+
+Definition μ_saxpy_gen : MS.mem :=
+  mem_of_pairs [(1000, M.VF32 42%Z); (2000, M.VF32 0%Z)].
+
+Definition cfg_saxpy_gen : MS.cfg :=
+  MS.mk_cfg SG.prog env_saxpy_gen μ_saxpy_gen.
+
+Definition trace_saxpy_gen : list M.event_mir := fst (MR.run 10 cfg_saxpy_gen).
+
+Example saxpy_gen_events_ok :
+  trace_saxpy_gen =
+    [ M.EvLoad M.TyF32 1000 (M.VF32 42%Z)
+    ; M.EvLoad M.TyF32 2000 (M.VF32 0%Z)
+    ; M.EvStore M.TyF32 2000 (M.VF32 42%Z)
+    ].
+Proof. reflexivity. Qed.
+
+Example saxpy_gen_translate_ok :
+  TR.translate_trace trace_saxpy_gen =
+    [ P.EvLoad  P.space_global P.sem_relaxed None P.MemF32 1000 42
+    ; P.EvLoad  P.space_global P.sem_relaxed None P.MemF32 2000 0
+    ; P.EvStore P.space_global P.sem_relaxed None P.MemF32 2000 42 ].
+Proof. reflexivity. Qed.
+
+Definition env_atomic_gen : MS.env :=
+  env_of_pairs [ ("_3", M.VU64 3000%Z)
+               ; ("_2", M.VU64 4000%Z)
+               ].
+
+Definition μ_atomic_gen : MS.mem :=
+  mem_of_pairs [(3000, M.VU32 0%Z); (4000, M.VU32 0%Z)].
+
+Definition cfg_atomic_gen : MS.cfg :=
+  MS.mk_cfg AF.prog env_atomic_gen μ_atomic_gen.
+
+Definition trace_atomic_gen : list M.event_mir := fst (MR.run 10 cfg_atomic_gen).
+
+Example atomic_gen_events_ok :
+  trace_atomic_gen =
+    [ M.EvAtomicLoadAcquire M.TyU32 3000 (M.VU32 0%Z)
+    ; M.EvStore M.TyU32 4000 (M.VU32 0%Z)
+    ; M.EvAtomicStoreRelease M.TyU32 3000 (M.VU32 1%Z)
+    ].
+Proof. reflexivity. Qed.
+
+Example atomic_gen_translate_ok :
+  TR.translate_trace trace_atomic_gen =
+    [ P.EvLoad  P.space_global P.sem_acquire (Some P.scope_sys) P.MemU32 3000 0
+    ; P.EvStore P.space_global P.sem_relaxed None P.MemU32 4000 0
+    ; P.EvStore P.space_global P.sem_release (Some P.scope_sys) P.MemU32 3000 1 ].
 Proof. reflexivity. Qed.

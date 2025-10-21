@@ -58,3 +58,19 @@ While this first phase omits Rust's ownership and lifetime reasoning, the framew
 
 This project establishes the missing formal bridge between Rust's compiler infrastructure and the only existing mechanized model of GPU execution.
 By defining verified semantics for MIR and connecting it to PTX, it provides the foundation for future CompCert-style verified compilation of GPU code and opens the door to ownership-aware proofs of safety and correctness for massively parallel Rust programs.
+
+## End-to-end demo
+
+Rebuild the MIR dumps, translate them into Coq, and check the traces/bridges with:
+
+```
+make demo
+```
+
+The target performs three steps:
+
+1. `rustc -Z dump-mir=all` for `examples/saxpy.rs` and `examples/atomic_flag.rs` (writes into `mir_dump/`).
+2. `tools/mir2coq.py` parses the `PreCodegen.after` dumps and regenerates `coq/examples/{saxpy,atomic_flag}_gen.v`.
+3. `make -C coq all` type-checks the MIR semantics, the generated programs, and the MIR→PTX translation lemmas.
+
+Afterwards you can inspect `coq/examples/*_gen.v` and re-run `Eval compute` queries found in `coq/MIRTests.v` to see the MIR event traces and their PTX images.

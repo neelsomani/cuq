@@ -1,0 +1,33 @@
+DIGEST 2fe00c1d7a11c32c502ef26fb1e55fab
+FTop.examples.atomic_flag_gen
+R24:29 Coq.ZArith.ZArith <> <> lib
+R31:34 Coq.Lists.List <> <> lib
+R36:41 Coq.Strings.String <> <> lib
+R51:63 Coq.Lists.List ListNotations <> mod
+R81:89 Top.MIRSyntax <> <> lib
+R91:102 Top.MIRSemantics <> <> lib
+R118:120 Top.MIRSyntax MIR <> modtype
+mod 113:113 <> M
+R136:147 Top.MIRSemantics MIRSemantics <> modtype
+mod 130:131 <> MS
+mod 158:172 <> Atomic_flag_gen
+def 187:190 Atomic_flag_gen prog
+R194:197 Coq.Init.Datatypes <> list ind
+R199:204 Top.examples.atomic_flag_gen M stmt ind
+R211:212 Coq.Lists.List ListNotations ::list_scope:'['_x_';'_x_';'_'..'_';'_x_']' not
+R260:265 Coq.Lists.List ListNotations ::list_scope:'['_x_';'_x_';'_'..'_';'_x_']' not
+R310:315 Coq.Lists.List ListNotations ::list_scope:'['_x_';'_x_';'_'..'_';'_x_']' not
+R379:380 Coq.Lists.List ListNotations ::list_scope:'['_x_';'_x_';'_'..'_';'_x_']' not
+R213:232 Top.examples.atomic_flag_gen M SAtomicLoadAcquire constr
+R240:245 Top.examples.atomic_flag_gen M EVar constr
+R253:259 Top.examples.atomic_flag_gen M TyU32 constr
+R266:273 Top.examples.atomic_flag_gen M SStore constr
+R276:281 Top.examples.atomic_flag_gen M EVar constr
+R290:295 Top.examples.atomic_flag_gen M EVar constr
+R303:309 Top.examples.atomic_flag_gen M TyU32 constr
+R316:336 Top.examples.atomic_flag_gen M SAtomicStoreRelease constr
+R339:344 Top.examples.atomic_flag_gen M EVar constr
+R353:358 Top.examples.atomic_flag_gen M EVal constr
+R361:366 Top.examples.atomic_flag_gen M VU32 constr
+R372:378 Top.examples.atomic_flag_gen M TyU32 constr
+R388:402 Top.examples.atomic_flag_gen Atomic_flag_gen <> mod

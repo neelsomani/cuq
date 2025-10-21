@@ -5,3 +5,5 @@ MIRTests.v
 PTXImports.v
 Translate.v
 Soundness.v
+examples/saxpy_gen.v
+examples/atomic_flag_gen.v

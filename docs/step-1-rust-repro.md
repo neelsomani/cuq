@@ -1,4 +1,4 @@
-# Step 1 Reproduction Guide
+# Step 1 Reproduction Guide
 
 The initial prototype targets Rust nightly-2025-03-02 and extracts MIR/PTX for
 two baseline kernels (`examples/saxpy.rs`, `examples/atomic_flag.rs`).

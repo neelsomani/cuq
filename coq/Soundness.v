@@ -17,7 +17,9 @@ Proof. reflexivity. Qed.
 Theorem AtomicStore_release_ok : forall ty addr val,
   T.tr_event (M.EvAtomicStoreRelease ty addr val) =
   option_map
-    (fun payload => P.EvStore P.scope_cta P.sem_release (P.mem_ty_of_mir ty) addr payload)
+    (fun payload =>
+       P.EvStore P.space_global P.sem_release (Some P.scope_sys)
+                 (P.mem_ty_of_mir ty) addr payload)
     (P.payload_of_mir ty val).
 Proof. intros; reflexivity. Qed.
 

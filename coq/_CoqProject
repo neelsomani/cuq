@@ -1,5 +1,7 @@
 MIRSyntax.v
 MIRSemantics.v
+MIRRun.v
+MIRTests.v
 PTXImports.v
 Translate.v
 Soundness.v

@@ -74,3 +74,65 @@ The target performs three steps:
 3. `make -C coq all` type-checks the MIR semantics, the generated programs, and the MIR→PTX translation lemmas.
 
 Afterwards you can inspect `coq/examples/*_gen.v` and re-run `Eval compute` queries found in `coq/MIRTests.v` to see the MIR event traces and their PTX images.
+
+### Architecture at a glance
+
+```
+examples/*.rs --rustc -Z dump-mir--> mir_dump/*.mir --tools/mir2coq.py--> coq/examples/*_gen.v
+        \                                                                 |
+         \--> target/*.ptx (optional)                                     v
+           Coq build (MIRSyntax + MIRSemantics + Translate + Soundness) -> PTX event traces
+```
+
+### Reproduce the pipeline
+
+1. Ensure the Rust nightly and Coq toolchain are available:
+   - `rustup toolchain install nightly-2025-03-02`
+   - `rustup override set nightly-2025-03-02`
+   - `opam install coq` (or equivalent)
+2. In every new shell, activate the Coq switch so `coq_makefile` is on your `PATH`:
+
+   ````
+   eval "$(opam env)"
+   ````
+
+3. Run the end-to-end build:
+
+   ```
+   make demo
+   ```
+
+### MIR→PTX mapping (MVP)
+
+Refer to `docs/mapping-table.md` for the full table. In short:
+
+- `TyI32`/`TyU32`/`TyF32` loads and stores become `EvLoad`/`EvStore` in PTX with
+  `space_global`, relaxed semantics, and the matching `mem_ty` (`MemS32`,
+  `MemU32`, `MemF32`).
+- Acquire loads and release stores attach `sem_acquire`/`sem_release` and CTA
+  scope, mirroring the observed `ld.acquire.sys.<ty>` and `st.release.sys.<ty>`.
+- Barriers translate to `EvBarrier scope_cta`.
+
+The translator (`coq/Translate.v`) and the docs stay in sync via helper
+functions `mem_ty_of_mir` and `z_of_val`.
+
+### Limitations (MVP)
+
+- Global memory only; shared-memory scopes and bank conflicts are out of scope.
+- Non-atomic accesses are relaxed and scope-less; only one acquire/release pair
+  with SYS scope is modelled.
+- Floating-point values are treated as raw IEEE-754 bit patterns (`Z` payloads);
+  no reasoning about NaNs or rounding edge cases yet.
+- Translator handles a curated subset of MIR (no arbitrary control flow, panic
+  paths, or complex intrinsics).
+
+### Next steps
+
+1. Extend the translator grammar to cover additional MIR statements
+   (comparisons, guards, simple loops/barriers) while preserving determinism.
+2. Enrich the PTX shim with reads-from / coherence relations from the PTX Coq
+   model.
+3. Prove the remaining per-event lemmas (`Load_ok`, `Store_ok`) and lift the
+   `translate_trace_shape` property toward an end-to-end soundness theorem.
+4. Integrate shared-memory scope tags and CTA-wide fences, then revisit
+   atomics/fences beyond acquire-release.

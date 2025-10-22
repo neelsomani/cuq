@@ -2,7 +2,7 @@
 """Translate a restricted MIR dump into a Coq MIR program.
 
 The translator is intentionally small and pattern-driven.  It recognises the
-handful of MIR shapes exercised by the week-1 kernels (`saxpy`,
+handful of MIR shapes exercised by the MVP kernels (`saxpy`,
 `atomic_flag::acquire_release`) and emits the corresponding Gallina terms under
 `MIRSyntax`.
 
@@ -194,7 +194,7 @@ def classify_type(raw: str) -> TypeInfo:
     if alias:
         return TypeInfo(kind="scalar", mir_ty=alias)
 
-    # Atomic payloads collapse to u32 for week-1.
+    # Atomic payloads collapse to u32 for the MVP subset.
     if "AtomicU32" in raw:
         return TypeInfo(kind="other", mir_ty="TyU32")
 

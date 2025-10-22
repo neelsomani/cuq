@@ -14,12 +14,15 @@
 
 - `PTX.addr` for 64-bit addresses
 - `PTX.reg32`, `PTX.reg64`, `PTX.pred` for register payloads
-- `PTX.f32` for 32-bit floats
-- `PTX.atomic_scope` (we use CTA scope only)
+- `PTX.f32` for 32-bit floats  
+  (note: in the MVP we use CTA scope for barriers; atomics use SYS scope)
 
-## Simplifications for step 1
+## Simplifications for the MVP
 
 - Global memory only (switch to shared/local later)
 - Relaxed non-atomic loads/stores (no scope tag)
-- Single acquire/release pair for atomics (scope SYS for now)
-- Barriers are CTA-scoped (`PTX.EvBarrier scope_cta`)
+- Single acquire/release pair for atomics (SYS scope)
+- Barriers are CTA-scoped only (`PTX.EvBarrier scope_cta`)
+- Payloads are carried as `Z` with a lane tag (`mem_ty`) indicating width/signedness;  
+  `f32` are IEEE-754 bit patterns in `Z`, and `bool` is encoded as 0/1  
+  (no `.pred` events emitted in this step)

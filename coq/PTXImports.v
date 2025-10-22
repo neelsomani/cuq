@@ -2,7 +2,7 @@ From Coq Require Import ZArith Bool.Bool.
 
 Module PTX.
 
-(* Memory spaces (week-1: only global) *)
+(* Memory spaces (MVP: only global) *)
 Inductive space :=
 | SpaceGlobal
 | SpaceShared.
@@ -26,7 +26,7 @@ Inductive mem_ty :=
 | MemU64
 | MemPred.
 
-(* PTX events touched in week-1 bridge *)
+(* PTX events touched in the MVP bridge *)
 Inductive event :=
 | EvLoad
     (sp  : space)
@@ -56,4 +56,3 @@ Definition scope_cta : scope := ScopeCTA.
 Definition scope_sys : scope := ScopeSYS.
 
 End PTX.
-

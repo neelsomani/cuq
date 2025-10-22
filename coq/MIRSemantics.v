@@ -10,7 +10,7 @@ Module MIRSemantics.
 
 Module M := MIR.
 
-(** * Environments and memory models for week-1 MIR *)
+(** * Environments and memory models for the MVP MIR subset *)
 
 Record env := {
   env_get : M.var -> option M.val

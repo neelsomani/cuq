@@ -28,4 +28,3 @@ Generate MIR (output in `mir_dump/`):
   is stored at `target/atomic_flag.ptx.error` for reference.
 - The SAXPY kernel works with the default PTX target (`sm_30`).
 - Both kernels are `#![no_std]` and can be compiled directly via `rustc`.
-

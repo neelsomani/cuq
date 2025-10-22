@@ -238,6 +238,11 @@ RE_ATOMIC_STORE = re.compile(
     r"^\s*(?:{ident}\s*=\s*)?AtomicU\d+::store\((?P<args>.+)\)".format(ident=IDENT)
 )
 RE_BARRIER = re.compile(r"barrier|syncthreads", re.IGNORECASE)
+RE_ORDERING_SET = re.compile(
+    r"^\s*(?P<dst>{ident})\s*=\s*(?:core::sync::atomic::Ordering::)?(?P<ord>Acquire|Release|Relaxed|SeqCst|AcqRel|ReleaseAcquire|Consume)\s*;".format(
+        ident=IDENT
+    )
+)
 
 
 def split_args(arg_str: str) -> List[str]:
@@ -342,15 +347,45 @@ def expr_for_pointer(name: str, exprs: Dict[str, Expr]) -> Expr:
     return exprs.get(name, Var(name))
 
 
+def operand_base(token: str) -> Optional[str]:
+    token = token.strip()
+    if token.startswith("copy ") or token.startswith("move "):
+        token = token.split()[1]
+    # remove possible surrounding parentheses
+    token = token.strip()
+    return token if re.fullmatch(IDENT, token) else None
+
+
+def normalize_ordering(token: str) -> str:
+    token = token.strip()
+    m = re.search(r'Ordering::([A-Za-z]+)$', token)
+    if m:
+        return m.group(1)
+    return token.split("::")[-1]
+
+
+def ordering_from_token(token: str, bindings: Dict[str, str]) -> str:
+    base = operand_base(token)
+    if base and base in bindings:
+        return bindings[base]
+    return normalize_ordering(token)
+
+
 def parse_statements(lines: Sequence[str]) -> Tuple[List[Stmt], Dict[str, Expr], Dict[str, str]]:
     types = collect_types(lines)
     ptr_targets = infer_pointer_targets(types)
     derived_exprs: Dict[str, Expr] = {}
     stmts: List[Stmt] = []
+    ordering_bindings: Dict[str, str] = {}
 
     for raw in lines:
         line = raw.strip()
         if not line or line.startswith("//"):
+            continue
+
+        m_ord = RE_ORDERING_SET.match(line)
+        if m_ord:
+            ordering_bindings[m_ord.group("dst")] = m_ord.group("ord")
             continue
 
         # Track pointer expressions first so later loads/stores can reuse them.
@@ -388,12 +423,13 @@ def parse_statements(lines: Sequence[str]) -> Tuple[List[Stmt], Dict[str, Expr],
         if m_store:
             ptr = m_store.group("ptr")
             rhs = m_store.group("rhs")
-            ptr_ty = ptr_targets.get(ptr, "TyU32")
+            addr_expr = expr_for_pointer(ptr, derived_exprs)
+            elem_ty = ptr_targets.get(ptr, "TyU32")
             stmts.append(
                 StoreStmt(
-                    addr=expr_for_pointer(ptr, derived_exprs),
+                    addr=addr_expr,
                     value=parse_expr(rhs.rstrip(";")),
-                    ty=ptr_ty,
+                    ty=elem_ty,
                 )
             )
             continue
@@ -402,7 +438,10 @@ def parse_statements(lines: Sequence[str]) -> Tuple[List[Stmt], Dict[str, Expr],
         if m_at_load:
             dst = m_at_load.group("dst")
             args = split_args(m_at_load.group("args"))
-            addr_expr = parse_operand(args[0]) if args else Var("_")
+            if len(args) < 2 or ordering_from_token(args[-1], ordering_bindings) != "Acquire":
+                print(f"error: unsupported atomic load ordering in line: {line}", file=sys.stderr)
+                sys.exit(2)
+            addr_expr = parse_operand(args[0])
             ty_info = types.get(dst)
             mir_ty = ty_info.mir_ty if ty_info and ty_info.mir_ty else "TyU32"
             stmts.append(AtomicLoadStmt(dst=dst, addr=addr_expr, ty=mir_ty))
@@ -411,17 +450,20 @@ def parse_statements(lines: Sequence[str]) -> Tuple[List[Stmt], Dict[str, Expr],
         m_at_store = RE_ATOMIC_STORE.match(line)
         if m_at_store:
             args = split_args(m_at_store.group("args"))
-            if len(args) >= 2:
-                addr_expr = parse_operand(args[0])
-                val_expr = parse_expr(args[1])
-                ty = ptr_targets.get(args[0].split()[-1], "TyU32")
-                stmts.append(
-                    AtomicStoreStmt(
-                        addr=addr_expr,
-                        value=val_expr,
-                        ty=ty,
-                    )
+            if len(args) < 3 or ordering_from_token(args[-1], ordering_bindings) != "Release":
+                print(f"error: unsupported atomic store ordering in line: {line}", file=sys.stderr)
+                sys.exit(2)
+            addr_expr = parse_operand(args[0])
+            val_expr = parse_expr(args[1])
+            ptr_name = operand_base(args[0])
+            ty = ptr_targets.get(ptr_name or "", "TyU32")
+            stmts.append(
+                AtomicStoreStmt(
+                    addr=addr_expr,
+                    value=val_expr,
+                    ty=ty,
                 )
+            )
             continue
 
         if RE_BARRIER.search(line):

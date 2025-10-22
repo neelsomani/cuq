@@ -89,7 +89,7 @@ examples/*.rs --rustc -Z dump-mir--> mir_dump/*.mir --tools/mir2coq.py--> coq/ex
 1. Ensure the Rust nightly and Coq toolchain are available:
    - `rustup toolchain install nightly-2025-03-02`
    - `rustup override set nightly-2025-03-02`
-   - `opam install coq` (or equivalent)
+   - `opam install coq` (Coq ≥ 8.18)
 2. In every new shell, activate the Coq switch so `coq_makefile` is on your `PATH`:
 
    ````
@@ -100,6 +100,7 @@ examples/*.rs --rustc -Z dump-mir--> mir_dump/*.mir --tools/mir2coq.py--> coq/ex
 
    ```
    make demo
+   make bad-demo
    ```
 
 ### MIR→PTX mapping (MVP)

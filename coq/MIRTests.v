@@ -170,3 +170,24 @@ Example trans_i32_ok :
     [ P.EvLoad  P.space_global P.sem_relaxed None P.MemS32 5000 7
     ; P.EvStore P.space_global P.sem_relaxed None P.MemS32 6000 7 ].
 Proof. reflexivity. Qed.
+
+(* === Negative assertions: intentional failures to guard invariants === *)
+
+(* 1) Signed 32-bit payloads must map to MemS32, not MemU32. *)
+Definition prog_i32_neg : list M.stmt :=
+  [ M.SLoad "x" (M.EVal (M.VU64 5000)) M.TyI32 ].
+Definition μ_i32_neg : MS.mem := mem_of_pairs [(5000, M.VI32 7%Z)].
+Definition cfg_i32_neg : MS.cfg := MS.mk_cfg prog_i32_neg empty_env μ_i32_neg.
+Definition tr_i32_neg : list M.event_mir := fst (MR.run 3 cfg_i32_neg).
+(* 2) Acquire loads must carry SYS scope. *)
+Definition tr_acq : list M.event_mir :=
+  [M.EvAtomicLoadAcquire M.TyU32 0 (M.VU32 0%Z)].
+
+Goal True.
+  Fail unify (TR.translate_event M.EvBarrier) (P.EvBarrier P.scope_sys).
+  Fail unify (TR.translate_trace tr_i32_neg)
+            [ P.EvLoad P.space_global P.sem_relaxed None P.MemU32 5000 7 ].
+  Fail unify (TR.translate_trace tr_acq)
+            [ P.EvLoad P.space_global P.sem_acquire (Some P.scope_cta) P.MemU32 0 0 ].
+  exact I.
+Qed.

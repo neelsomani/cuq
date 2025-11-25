@@ -4,8 +4,8 @@
 
 Rust's rise as a systems language has extended into GPU programming through projects like Rust-CUDA and rust-gpu, which compile Rust kernels to NVIDIA's PTX or SPIR-V backends. Yet despite Rust's strong safety guarantees, there is currently no formal semantics for Rust's GPU subset, nor any verified mapping from Rust's compiler IR to PTX's formally defined execution model.
 
-This project introduces the first framework for **formally verifying the semantics of Rust GPU kernels** by translating Rust's Mid-level Intermediate Representation (MIR) into Coq and connecting it to the existing Coq formalization of the PTX memory model (Lustig et al., ASPLOS 2019).
-Rather than modeling Rust's ownership and borrowing rules directly, this work focuses on defining a mechanized operational semantics for a realistic subset of MIR and establishing memory-model soundness: proving that MIR atomic and synchronization operations compile soundly to PTX instructions under the PTX memory model.
+This project introduces the first framework for **formally verifying the semantics of Rust GPU kernels** by translating Rust's Mid-level Intermediate Representation (MIR) into Coq and building a PTX-flavored event layer designed to line up with the Coq formalization of the PTX memory model (Lustig et al., ASPLOS 2019).
+Rather than modeling Rust's ownership and borrowing rules directly, this work focuses on defining a mechanized operational semantics for a realistic subset of MIR and establishing memory-model soundness: defining a translation from MIR atomic and synchronization events to PTX-style events and proving per-event and per-trace shape correctness, as a stepping stone toward a full memory-model soundness theorem.
 
 **Cuq = CUDA + Coq**.
 
@@ -23,18 +23,18 @@ Rather than modeling Rust's ownership and borrowing rules directly, this work fo
 ## Technical Approach
 
 1. **Define a mechanized semantics for MIR:**
-   Implement a Coq formalization of a simplified MIR subset sufficient to express GPU kernels: variable assignment, arithmetic, control flow, memory loads/stores, and synchronization intrinsics.
+   Implement a Coq formalization of a small MIR-like subset sufficient to express simple GPU kernels: variable assignment, arithmetic, control flow, memory loads/stores, and synchronization intrinsics.
 
 2. **Translate MIR to Coq:**
-   Develop a translation tool that consumes `rustc`'s `-Z dump-mir` output and produces corresponding Gallina definitions. The translation captures MIR basic blocks, terminators, and memory actions as Coq terms.
+   Develop a translation tool that consumes `rustc`'s `-Z dump-mir` output for a curated fragment and produces corresponding Gallina definitions. The translation captures MIR basic blocks, terminators, and memory actions as Coq terms.
 
 3. **Connect to PTX semantics:**
-   Use the existing Coq formalization of PTX to define a *memory-model correspondence* between MIR and PTX traces. The initial goal is to prove *soundness* in the same sense as Lustig et al. (ASPLOS 2019):
+   Define a PTX-style event layer in Coq, together with a translation from MIR events to PTX events that matches PTX's acquire/release annotations, and prove per-event and per-trace shape properties. The intent is to plug this event layer into the existing Coq PTX memory model of Lustig et al in the next phase, with the long-term goal of proving:
 
    > If a MIR kernel is data-race-free under the MIR memory model, its compiled PTX program admits only executions consistent with the PTX memory model.
 
 4. **Property verification:**
-   Leverage this semantics to verify kernel-level properties such as:
+   Leverage this semantics later to verify kernel-level properties such as:
 
    * Absence of divergent barrier synchronization;
    * Preservation of sequential equivalence (e.g., for reductions or scans);
@@ -43,12 +43,12 @@ Rather than modeling Rust's ownership and borrowing rules directly, this work fo
 5. **Prototype toolchain:**
    Deliver a prototype that automatically translates Rust-CUDA kernels into Coq terms, evaluates their semantics within Coq, and interfaces with PTX proofs.
 
-## Expected Outcomes
+## Planned Outcomes
 
-* A **Coq formalization of Rust MIR semantics** for GPU kernels using Rust nightly-2025-03-02.
-* A **MIR→PTX memory-model correspondence theorem**, establishing soundness of atomic and synchronization operations for a well-defined kernel subset.
-* A **prototype translator** generating Coq verification artifacts from Rust code.
-* **Case studies** on standard CUDA benchmarks (e.g., SAXPY, reductions) verifying barrier correctness and dataflow soundness.
+* A Coq formalization of Rust MIR semantics for GPU kernels using Rust nightly-2025-03-02.
+* A MIR→PTX memory-model correspondence theorem, establishing soundness of atomic and synchronization operations for a well-defined kernel subset.
+* A prototype translator generating Coq verification artifacts from Rust code.
+* Case studies on standard CUDA benchmarks (e.g., SAXPY, reductions) verifying barrier correctness and dataflow soundness.
 
 ## Future Work
 
@@ -110,7 +110,7 @@ Refer to `docs/mapping-table.md` for the full table. In short:
 - `TyI32`/`TyU32`/`TyF32` loads and stores become `EvLoad`/`EvStore` in PTX with
   `space_global`, relaxed semantics, and the matching `mem_ty` (`MemS32`,
   `MemU32`, `MemF32`).
-- Acquire loads and release stores attach `sem_acquire`/`sem_release` and CTA
+- Acquire loads and release stores attach `sem_acquire`/`sem_release` and SYS
   scope, mirroring the observed `ld.acquire.sys.<ty>` and `st.release.sys.<ty>`.
 - Barriers translate to `EvBarrier scope_cta`.
 

@@ -8,6 +8,7 @@ Require Import MIRSyntax.
 Require Import MIRSemantics.
 Require Import MIRRun.
 Require Import PTXImports.
+Require Import PTXReadsFrom.
 Require Import Translate.
 Require Import saxpy_gen.
 Require Import atomic_flag_gen.
@@ -16,6 +17,7 @@ Module M := MIR.
 Module MS := MIRSemantics.
 Module MR := MIRRun.
 Module P := PTX.
+Module RF := PTXReadsFrom.
 Module TR := Translate.
 Module SG := Saxpy_gen.
 Module AF := Atomic_flag_gen.
@@ -152,6 +154,36 @@ Example atomic_gen_translate_ok :
     [ P.EvLoad  P.space_global P.sem_acquire (Some P.scope_sys) P.MemU32 3000 0
     ; P.EvStore P.space_global P.sem_relaxed None P.MemU32 4000 0
     ; P.EvStore P.space_global P.sem_release (Some P.scope_sys) P.MemU32 3000 1 ].
+Proof. reflexivity. Qed.
+
+(* === Step 5: reads-from maps and coherence relations === *)
+
+Definition rf_saxpy_gen : RF.rf_map :=
+  RF.rf_of_trace (TR.translate_trace trace_saxpy_gen).
+
+Example saxpy_gen_rf_ok :
+  rf_saxpy_gen = [None; None; Some 1%nat].
+Proof. reflexivity. Qed.
+
+Definition rf_atomic_gen : RF.rf_map :=
+  RF.rf_of_trace (TR.translate_trace trace_atomic_gen).
+
+Example atomic_gen_rf_ok :
+  rf_atomic_gen = [None; None; Some 0%nat].
+Proof. reflexivity. Qed.
+
+Definition co_saxpy_gen : RF.rf_cfg :=
+  RF.co_of_trace (TR.translate_trace trace_saxpy_gen).
+
+Example saxpy_gen_co_ok :
+  co_saxpy_gen 2000 = [1%nat].
+Proof. reflexivity. Qed.
+
+Definition co_atomic_gen : RF.rf_cfg :=
+  RF.co_of_trace (TR.translate_trace trace_atomic_gen).
+
+Example atomic_gen_co_ok :
+  co_atomic_gen 3000 = [0%nat].
 Proof. reflexivity. Qed.
 
 (* === Additional regression: i32 loads use MemS32 === *)

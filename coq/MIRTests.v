@@ -8,7 +8,7 @@ Require Import MIRSyntax.
 Require Import MIRSemantics.
 Require Import MIRRun.
 Require Import PTXImports.
-Require Import PTXReadsFrom.
+Require Import PTXRelations.
 Require Import Translate.
 Require Import saxpy_gen.
 Require Import atomic_flag_gen.
@@ -17,7 +17,7 @@ Module M := MIR.
 Module MS := MIRSemantics.
 Module MR := MIRRun.
 Module P := PTX.
-Module RF := PTXReadsFrom.
+Module RF := PTXRelations.
 Module TR := Translate.
 Module SG := Saxpy_gen.
 Module AF := Atomic_flag_gen.

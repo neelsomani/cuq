@@ -6,12 +6,14 @@ Import ListNotations.
 Require Import PTXImports.
 
 (*
-  PTXReadsFrom builds auxiliary relations over PTX event traces:
-  - [rf_of_trace] exposes the reads-from map, represented as a function from PTX event indices to the load index they read from (when present).
-  - [co_of_trace] exposes the coherence order: a strict total order over stores to each address.
+  PTXRelations builds auxiliary relations over PTX event traces:
+  - [rf_of_trace] exposes the reads-from map, represented as a function from
+    PTX event indices to the load index they read from (when present).
+  - [co_of_trace] exposes the coherence order: a strict total order over
+    stores to each address.
 *)
 
-Module PTXReadsFrom.
+Module PTXRelations.
 
 Module P := PTX.
 Module Ord := Nat_as_OT.
@@ -86,4 +88,4 @@ Definition rf_of_trace (trace : list P.event) : rf_map :=
 Definition co_of_trace (trace : list P.event) : co_rel :=
   fun a i j => rel_from_list (store_indices (enumerate trace) a) i j.
 
-End PTXReadsFrom.
+End PTXRelations.

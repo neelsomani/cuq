@@ -161,30 +161,62 @@ Proof. reflexivity. Qed.
 Definition rf_saxpy_gen : RF.rf_map :=
   RF.rf_of_trace (TR.translate_trace trace_saxpy_gen).
 
-Example saxpy_gen_rf_ok :
-  rf_saxpy_gen = [None; None; Some 1%nat].
+Example saxpy_gen_rf_store_ok :
+  rf_saxpy_gen 2%nat = Some 1%nat.
+Proof. reflexivity. Qed.
+
+Example saxpy_gen_rf_load0_none :
+  rf_saxpy_gen 0%nat = None.
+Proof. reflexivity. Qed.
+
+Example saxpy_gen_rf_load1_none :
+  rf_saxpy_gen 1%nat = None.
 Proof. reflexivity. Qed.
 
 Definition rf_atomic_gen : RF.rf_map :=
   RF.rf_of_trace (TR.translate_trace trace_atomic_gen).
 
-Example atomic_gen_rf_ok :
-  rf_atomic_gen = [None; None; Some 0%nat].
+Example atomic_gen_rf_release_ok :
+  rf_atomic_gen 2%nat = Some 0%nat.
 Proof. reflexivity. Qed.
 
-Definition co_saxpy_gen : RF.rf_cfg :=
+Example atomic_gen_rf_relaxed_none :
+  rf_atomic_gen 1%nat = None.
+Proof. reflexivity. Qed.
+
+Definition co_saxpy_gen : RF.co_rel :=
   RF.co_of_trace (TR.translate_trace trace_saxpy_gen).
 
-Example saxpy_gen_co_ok :
-  co_saxpy_gen 2000 = [1%nat].
-Proof. reflexivity. Qed.
+Example saxpy_gen_co_irrefl :
+  ~ co_saxpy_gen 2000 2%nat 2%nat.
+Proof. vm_compute. intros contra. inversion contra. Qed.
 
-Definition co_atomic_gen : RF.rf_cfg :=
+Definition co_atomic_gen : RF.co_rel :=
   RF.co_of_trace (TR.translate_trace trace_atomic_gen).
 
-Example atomic_gen_co_ok :
-  co_atomic_gen 3000 = [0%nat].
-Proof. reflexivity. Qed.
+Example atomic_gen_co_disjoint :
+  ~ co_atomic_gen 3000 2%nat 1%nat.
+Proof. vm_compute. intros contra. inversion contra. Qed.
+
+Definition prog_two_stores : list M.stmt :=
+  [ M.SStore (M.EVal (M.VU64 7000)) (M.EVal (M.VI32 1%Z)) M.TyI32
+  ; M.SStore (M.EVal (M.VU64 7000)) (M.EVal (M.VI32 2%Z)) M.TyI32
+  ].
+
+Definition μ_two_stores : MS.mem := mem_of_pairs [(7000, M.VI32 0%Z)].
+Definition cfg_two_stores : MS.cfg := MS.mk_cfg prog_two_stores empty_env μ_two_stores.
+Definition trace_two_stores : list M.event_mir := fst (MR.run 5 cfg_two_stores).
+
+Definition co_two_stores : RF.co_rel :=
+  RF.co_of_trace (TR.translate_trace trace_two_stores).
+
+Example co_two_stores_order :
+  co_two_stores 7000 0%nat 1%nat.
+Proof. vm_compute. apply Nat.le_refl. Qed.
+
+Example co_two_stores_asym :
+  ~ co_two_stores 7000 1%nat 0%nat.
+Proof. vm_compute. intros contra. inversion contra. Qed.
 
 (* === Additional regression: i32 loads use MemS32 === *)
 

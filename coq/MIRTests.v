@@ -179,7 +179,7 @@ Definition co_saxpy_gen : RF.co_rel :=
   RF.co_of_trace (TR.translate_trace trace_saxpy_gen).
 
 Example saxpy_gen_co_irrefl :
-  ~ co_saxpy_gen 2000 2%nat 2%nat.
+  ~ co_saxpy_gen 2%nat 2%nat.
 Proof. vm_compute. intros contra. inversion contra. Qed.
 
 (* === Atomic_flag_gen trace === *)
@@ -199,7 +199,7 @@ Definition co_atomic_gen : RF.co_rel :=
   RF.co_of_trace (TR.translate_trace trace_atomic_gen).
 
 Example atomic_gen_co_disjoint :
-  ~ co_atomic_gen 3000 2%nat 1%nat.
+  ~ co_atomic_gen 2%nat 1%nat.
 Proof. vm_compute. intros contra. inversion contra. Qed.
 
 (* === multi-reads-from trace === *)
@@ -256,11 +256,11 @@ Definition co_multi_rf : RF.co_rel :=
   RF.co_of_trace (TR.translate_trace trace_multi_rf).
 
 Example multi_rf_co_order :
-  co_multi_rf 3000 0%nat 2%nat.
+  co_multi_rf 0%nat 2%nat.
 Proof. vm_compute. lia. Qed.
 
 Example multi_rf_co_no_reverse :
-  ~ co_multi_rf 3000 2%nat 0%nat.
+  ~ co_multi_rf 2%nat 0%nat.
 Proof. vm_compute. intros contra. lia. Qed.
 
 (* === two stores coherence test === *)
@@ -278,12 +278,12 @@ Definition co_two_stores : RF.co_rel :=
   RF.co_of_trace (TR.translate_trace trace_two_stores).
 
 Example co_two_stores_order :
-  co_two_stores 7000 0%nat 1%nat.
-Proof. vm_compute. apply Nat.le_refl. Qed.
+  co_two_stores 0%nat 1%nat.
+Proof. vm_compute. lia. Qed.
 
 Example co_two_stores_asym :
-  ~ co_two_stores 7000 1%nat 0%nat.
-Proof. vm_compute. intros contra. inversion contra. Qed.
+  ~ co_two_stores 1%nat 0%nat.
+Proof. vm_compute. intros contra. lia. Qed.
 
 (* === Additional regression: i32 loads use MemS32 === *)
 

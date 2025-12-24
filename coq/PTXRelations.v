@@ -1,5 +1,4 @@
 From Coq Require Import ZArith List.
-From Coq Require Import Structures.Orders Structures.OrdersEx.
 
 Import ListNotations.
 
@@ -16,11 +15,9 @@ Require Import PTXImports.
 Module PTXRelations.
 
 Module P := PTX.
-Module Ord := Nat_as_OT.
-
 Definition rf_map := nat -> option nat.
 Definition addr := Z.
-Definition co_rel := addr -> Ord.t -> Ord.t -> Prop.
+Definition co_rel := nat -> nat -> Prop.
 
 Fixpoint enumerate_from (start : nat) (trace : list P.event)
   : list (nat * P.event) :=
@@ -73,8 +70,14 @@ Fixpoint index_of (x : nat) (xs : list nat) : option nat :=
 
 Definition rel_from_list (xs : list nat) (i j : nat) : Prop :=
   match index_of i xs, index_of j xs with
-  | Some pi, Some pj => Ord.lt pi pj
+  | Some pi, Some pj => pi < pj
   | _, _ => False
+  end.
+
+Definition store_addr_at (trace : list P.event) (idx : nat) : option addr :=
+  match nth_error trace idx with
+  | Some (P.EvStore _ _ _ _ addr _) => Some addr
+  | _ => None
   end.
 
 Definition rf_of_trace (trace : list P.event) : rf_map :=
@@ -86,6 +89,12 @@ Definition rf_of_trace (trace : list P.event) : rf_map :=
     end.
 
 Definition co_of_trace (trace : list P.event) : co_rel :=
-  fun a i j => rel_from_list (store_indices (enumerate trace) a) i j.
+  fun i j =>
+    match store_addr_at trace i, store_addr_at trace j with
+    | Some ai, Some aj =>
+        if Z.eqb ai aj then rel_from_list (store_indices (enumerate trace) ai) i j
+        else False
+    | _, _ => False
+    end.
 
 End PTXRelations.

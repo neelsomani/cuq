@@ -1,4 +1,4 @@
-From Coq Require Import ZArith List String Bool.
+From Coq Require Import ZArith List String Bool Lia.
 
 Import ListNotations.
 Open Scope string_scope.
@@ -158,30 +158,21 @@ Proof. reflexivity. Qed.
 
 (* === Step 5: reads-from maps and coherence relations === *)
 
+(* === Saxpy_gen trace === *)
+
 Definition rf_saxpy_gen : RF.rf_map :=
   RF.rf_of_trace (TR.translate_trace trace_saxpy_gen).
 
-Example saxpy_gen_rf_store_ok :
-  rf_saxpy_gen 2%nat = Some 1%nat.
-Proof. reflexivity. Qed.
-
-Example saxpy_gen_rf_load0_none :
+Example saxpy_gen_rf_0_none :
   rf_saxpy_gen 0%nat = None.
 Proof. reflexivity. Qed.
 
-Example saxpy_gen_rf_load1_none :
+Example saxpy_gen_rf_1_none :
   rf_saxpy_gen 1%nat = None.
 Proof. reflexivity. Qed.
 
-Definition rf_atomic_gen : RF.rf_map :=
-  RF.rf_of_trace (TR.translate_trace trace_atomic_gen).
-
-Example atomic_gen_rf_release_ok :
-  rf_atomic_gen 2%nat = Some 0%nat.
-Proof. reflexivity. Qed.
-
-Example atomic_gen_rf_relaxed_none :
-  rf_atomic_gen 1%nat = None.
+Example saxpy_gen_rf_2_none :
+  rf_saxpy_gen 2%nat = None.
 Proof. reflexivity. Qed.
 
 Definition co_saxpy_gen : RF.co_rel :=
@@ -191,12 +182,88 @@ Example saxpy_gen_co_irrefl :
   ~ co_saxpy_gen 2000 2%nat 2%nat.
 Proof. vm_compute. intros contra. inversion contra. Qed.
 
+(* === Atomic_flag_gen trace === *)
+
+Definition rf_atomic_gen : RF.rf_map :=
+  RF.rf_of_trace (TR.translate_trace trace_atomic_gen).
+
+Example atomic_gen_rf_load_none :
+  rf_atomic_gen 0%nat = None.
+Proof. reflexivity. Qed.
+
+Example atomic_gen_rf_store_none :
+  rf_atomic_gen 1%nat = None.
+Proof. reflexivity. Qed.
+
 Definition co_atomic_gen : RF.co_rel :=
   RF.co_of_trace (TR.translate_trace trace_atomic_gen).
 
 Example atomic_gen_co_disjoint :
   ~ co_atomic_gen 3000 2%nat 1%nat.
 Proof. vm_compute. intros contra. inversion contra. Qed.
+
+(* === multi-reads-from trace === *)
+
+Definition prog_multi_rf : list M.stmt :=
+  [ M.SStore (M.EVal (M.VU64 3000)) (M.EVal (M.VU32 1)) M.TyU32
+  ; M.SLoad "x1" (M.EVal (M.VU64 3000)) M.TyU32
+  ; M.SStore (M.EVal (M.VU64 3000)) (M.EVal (M.VU32 2)) M.TyU32
+  ; M.SLoad "x2" (M.EVal (M.VU64 3000)) M.TyU32
+  ].
+
+Definition μ_multi_rf : MS.mem := mem_of_pairs [(3000, M.VU32 0%Z)].
+Definition cfg_multi_rf : MS.cfg := MS.mk_cfg prog_multi_rf empty_env μ_multi_rf.
+Definition trace_multi_rf : list M.event_mir := fst (MR.run 10 cfg_multi_rf).
+
+Example multi_rf_events_ok :
+  trace_multi_rf =
+    [ M.EvStore M.TyU32 3000 (M.VU32 1%Z)
+    ; M.EvLoad  M.TyU32 3000 (M.VU32 1%Z)
+    ; M.EvStore M.TyU32 3000 (M.VU32 2%Z)
+    ; M.EvLoad  M.TyU32 3000 (M.VU32 2%Z)
+    ].
+Proof. reflexivity. Qed.
+
+Example multi_rf_translate_ok :
+  TR.translate_trace trace_multi_rf =
+    [ P.EvStore P.space_global P.sem_relaxed None P.MemU32 3000 1
+    ; P.EvLoad  P.space_global P.sem_relaxed None P.MemU32 3000 1
+    ; P.EvStore P.space_global P.sem_relaxed None P.MemU32 3000 2
+    ; P.EvLoad  P.space_global P.sem_relaxed None P.MemU32 3000 2
+    ].
+Proof. reflexivity. Qed.
+
+Definition rf_multi_rf : RF.rf_map :=
+  RF.rf_of_trace (TR.translate_trace trace_multi_rf).
+
+Example multi_rf_rf_0_none :
+  rf_multi_rf 0%nat = None.
+Proof. reflexivity. Qed.
+
+Example multi_rf_rf_1_from0 :
+  rf_multi_rf 1%nat = Some 0%nat.
+Proof. reflexivity. Qed.
+
+Example multi_rf_rf_2_none :
+  rf_multi_rf 2%nat = None.
+Proof. reflexivity. Qed.
+
+Example multi_rf_rf_3_from2 :
+  rf_multi_rf 3%nat = Some 2%nat.
+Proof. reflexivity. Qed.
+
+Definition co_multi_rf : RF.co_rel :=
+  RF.co_of_trace (TR.translate_trace trace_multi_rf).
+
+Example multi_rf_co_order :
+  co_multi_rf 3000 0%nat 2%nat.
+Proof. vm_compute. lia. Qed.
+
+Example multi_rf_co_no_reverse :
+  ~ co_multi_rf 3000 2%nat 0%nat.
+Proof. vm_compute. intros contra. lia. Qed.
+
+(* === two stores coherence test === *)
 
 Definition prog_two_stores : list M.stmt :=
   [ M.SStore (M.EVal (M.VU64 7000)) (M.EVal (M.VI32 1%Z)) M.TyI32

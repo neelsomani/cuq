@@ -32,19 +32,19 @@ Fixpoint enumerate_from (start : nat) (trace : list P.event)
 Definition enumerate (trace : list P.event) : list (nat * P.event) :=
   enumerate_from 0 trace.
 
-Fixpoint last_load_idx (pairs : list (nat * P.event)) (a : addr)
+Fixpoint last_store_idx (pairs : list (nat * P.event)) (a : addr)
   : option nat :=
   match pairs with
   | [] => None
   | (i, ev) :: rest =>
-      match last_load_idx rest a with
-      | Some j => Some j
-      | None =>
-          match ev with
-          | P.EvLoad _ _ _ _ addr' _ => if Z.eqb addr' a then Some i else None
-          | _ => None
-          end
+    match last_store_idx rest a with
+    | Some j => Some j
+    | None =>
+      match ev with
+      | P.EvStore _ _ _ _ addr' _ => if Z.eqb addr' a then Some i else None
+      | _ => None
       end
+    end
   end.
 
 Fixpoint store_indices (pairs : list (nat * P.event)) (a : addr)
@@ -80,8 +80,8 @@ Definition rel_from_list (xs : list nat) (i j : nat) : Prop :=
 Definition rf_of_trace (trace : list P.event) : rf_map :=
   fun idx =>
     match nth_error trace idx with
-    | Some (P.EvStore _ _ _ _ addr _) =>
-        last_load_idx (enumerate_from 0 (firstn idx trace)) addr
+    | Some (P.EvLoad _ _ _ _ addr _) =>
+        last_store_idx (enumerate_from 0 (firstn idx trace)) addr
     | _ => None
     end.
 

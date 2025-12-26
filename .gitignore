@@ -46,3 +46,5 @@ coq/*.aux
 #.idea/
 
 AGENTS.md
+
+.vscode/

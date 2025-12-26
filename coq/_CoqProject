@@ -3,6 +3,7 @@ MIRSemantics.v
 MIRRun.v
 MIRTests.v
 PTXImports.v
+PTXRelations.v
 Translate.v
 Soundness.v
 examples/saxpy_gen.v

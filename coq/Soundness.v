@@ -2,7 +2,7 @@ From Coq Require Import List.
 
 Import ListNotations.
 
-Require Import MIRSyntax MIRSemantics Translate PTXImports.
+Require Import MIRSyntax MIRSemantics Translate PTXImports PTXRelations.
 
 Module Soundness.
 
@@ -10,6 +10,7 @@ Module M  := MIR.
 Module MS := MIRSemantics.
 Module T  := Translate.
 Module P  := PTX.
+Module RF := PTXRelations.
 
 Lemma barrier_ok :
   T.translate_event M.EvBarrier = P.EvBarrier P.scope_cta.
